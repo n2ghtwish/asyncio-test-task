@@ -58,7 +58,8 @@ async def close_db(app):
 
 @click.command()
 @click.option('--db-url')
-def main(db_url):
+@click.option('--listen')
+def main(db_url, listen):
     app = web.Application()
     app['db_url'] = db_url
     app.on_startup.append(setup_db)
@@ -69,4 +70,12 @@ def main(db_url):
         web.get('/user/{id}/groups', user_groups),
     ])
 
-    web.run_app(app, host='localhost', port=8000)
+    if listen is None:
+        host = 'localhost'
+        port = 8000
+    else:
+        host_port = listen.split(':')
+        host = host_port[0]
+        port = int(host_port[1])
+
+    web.run_app(app, host=host, port=port)
