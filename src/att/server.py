@@ -27,6 +27,7 @@ def main(db_url, listen):
     app.add_routes([
         web.post('/login', r.login),
         web.get('/user/{id}/groups', r.user_groups),
+        web.post('/signup', r.signup)
     ])
 
     if listen is None:
