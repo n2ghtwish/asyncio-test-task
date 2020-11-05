@@ -27,3 +27,19 @@ t_user = sa.Table(
     sa.CheckConstraint('lower(login) = login', name='login_is_lowercase'),
     sa.CheckConstraint('length(password) > 0', name='password_len_gt_0'),
 )
+
+t_groups = sa.Table(
+    'groups', metadata,
+    sa.Column('id', pg.UUID(as_uuid=True), primary_key=True,
+              server_default=sa.func.gen_random_uuid()),
+    sa.Column('name', sa.String, nullable=False),
+    sa.CheckConstraint('length(name) > 0', name='name_len_gt_0'),
+)
+
+t_user_groups = sa.Table(
+    'user_groups', metadata,
+    sa.Column('id', pg.UUID(as_uuid=True), primary_key=True,
+              server_default=sa.func.gen_random_uuid()),
+    sa.Column('user_id', sa.ForeignKey(t_user.columns.id), nullable=False),
+    sa.Column('group_id', sa.ForeignKey(t_groups.columns.id), nullable=False)
+)
