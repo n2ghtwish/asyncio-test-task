@@ -64,6 +64,13 @@ REMOVE_USER_GROUP = (
     .where(t_user_groups.c.id == sa.bindparam('id'))
 )
 
+SELECT_GROUP_USERS = (
+    sa.select([
+        t_user_groups.c.user_id.label('user_id'),
+    ])
+    .where(t_user_groups.c.group_id == sa.bindparam('group'))
+)
+
 
 def make_login_response(user_id):
     if user_id is not None:
@@ -176,11 +183,9 @@ async def remove_from_group(request):
 async def add_listener(request):
     ws = web.WebSocketResponse(autoclose=False, heartbeat=1)
     await ws.prepare(request)
-
     user_id = request.match_info.get('id', None)
-
     async with request.app['db'].acquire() as conn:
-        # result = await conn.execute(CHECK_USER, login='bob')  # возврат заведомо существующего id для отладки
+        # result = await conn.execute(CHECK_USER, login='john')  # возврат заведомо существующего id для отладки
         result = await conn.execute(CHECK_USER_ID, id=user_id)
         user_id_ = await result.scalar()
         if user_id_ is not None:
@@ -191,3 +196,23 @@ async def add_listener(request):
         else:
             await ws.send_json({'error': 'user not found'})
         return ws
+
+
+async def broadcast(request):
+    params = await request.json()
+    group_name = request.match_info.get('group', None)
+    message = params.get('message')
+    async with request.app['db'].acquire() as conn:
+        result = await conn.execute(CHECK_GROUP, group=group_name)
+        group_id = await result.scalar()
+        if group_id is not None:
+            result = await conn.execute(SELECT_GROUP_USERS, group=group_id)
+            user_ids = await result.fetchall()
+            for user_id in user_ids:
+                str_user_id = str(user_id[0])
+                if str_user_id in request.app['sockets']:
+                    ws = request.app['sockets'][str_user_id]
+                    await ws.send_json({'message': message})
+            return web.json_response({'success': 'message was sent'})
+        else:
+            return web.json_response({'error': 'group is not exists'})

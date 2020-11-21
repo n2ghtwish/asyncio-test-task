@@ -20,7 +20,7 @@ async def close_db(app):
 @click.option('--listen')
 def main(db_url, listen):
     app = web.Application()
-    # app['db_url'] = 'postgres://att_user:att_pass@localhost/att_db'
+    # app['db_url'] = 'postgres://att_user:att_pass@localhost/att_db'  # для запуска через отладку
     app['db_url'] = db_url
     app['sockets'] = dict()
     app.on_startup.append(setup_db)
@@ -33,7 +33,8 @@ def main(db_url, listen):
         web.post('/group', r.group),
         web.post('/add_to_group', r.add_to_group),
         web.post('/remove_from_group', r.remove_from_group),
-        web.get('/listen/{id}', r.add_listener)
+        web.get('/listen/{id}', r.add_listener),
+        web.post('/broadcast/{group}', r.broadcast)
     ])
 
     if listen is None:
