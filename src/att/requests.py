@@ -17,6 +17,13 @@ CHECK_USER = (
     .where(t_user.c.login == sa.bindparam('login'))
 )
 
+CHECK_USER_ID = (
+    sa.select([
+        t_user.c.id.label('user_id_'),
+    ])
+    .where(t_user.c.id == sa.bindparam('id'))
+)
+
 ADD_USER = (
     sa.insert(t_user)
     .values([{'login': sa.bindparam('login'),
@@ -164,3 +171,23 @@ async def remove_from_group(request):
                     return web.json_response({'success': f'removed user {login} from group {group_name}'})
                 else:
                     return web.json_response({'error': 'user is not in group'})
+
+
+async def add_listener(request):
+    ws = web.WebSocketResponse(autoclose=False, heartbeat=1)
+    await ws.prepare(request)
+
+    user_id = request.match_info.get('id', None)
+
+    async with request.app['db'].acquire() as conn:
+        # result = await conn.execute(CHECK_USER, login='bob')  # возврат заведомо существующего id для отладки
+        result = await conn.execute(CHECK_USER_ID, id=user_id)
+        user_id_ = await result.scalar()
+        if user_id_ is not None:
+            request.app['sockets'][user_id] = ws
+            await ws.send_json({'success': f'user {user_id} added to listeners'})
+            async for msg in ws:
+                pass
+        else:
+            await ws.send_json({'error': 'user not found'})
+        return ws
